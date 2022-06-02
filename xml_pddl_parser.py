@@ -161,21 +161,6 @@ def generate_domain(world: World, name: str = "zombie"):
             write_facts(action.effects, file)
             file.write(")")
         file.write(")")
-            # for i, ef in enumerate(action.effects):
-            #     if ef.is_negated:
-            #         file.write("(not ")
-            #     file.write(f"({ef.name}")
-            #     for arg in ef.arguments:
-            #         file.write(f" ?{arg}")
-            #     file.write(")")
-            #     if ef.is_negated:
-            #         file.write(")")
-            #     if i != len(action.effects)-1:
-            #         file.write("\n\t\t\t\t")
-            #     else:
-            #         file.write(")")
-
-            # file.write(f"({param.type} ?{param.name}))")
 
 def generate_problem(individual: Individual, world: World, name: str = "zombie"):
     with open(f"./{name}/problem.pddl", "w") as file:
@@ -189,16 +174,11 @@ def generate_problem(individual: Individual, world: World, name: str = "zombie")
             file.write("\n\t")
         file.write(")")
         file.write(f"\n\t(:init\t")
-        write_object_grouped(grouped_objects, file)
-        # for object in world.objects:
-        #     file.write(f"\n\t\t(equal {object.name} {object.name})")    
+        write_object_grouped(grouped_objects, file) 
         write_state_facts(individual.initial_state, file)
         file.write(f"\n\n\t(:goal (and\t")
-        # write_object_grouped(grouped_objects, file)
         write_state_facts(individual.goal_state, file)
         file.write("))")
-
-
 
 world = parse_xml("quest_db.xml")
 print(world.actions)
@@ -206,8 +186,8 @@ paths = [f for f in world.facts if f.name in ["path", "open"]]
 types = [f for f in world.facts if f.name.startswith("is")]
 test = [Fact("at", ["john", "forest"]), Fact("at", ["antidote2", "hospital"]), Fact("at", ["food3", "hospital"]), Fact("at", ["john", "island"]), Fact("healthy", ["john"]), Fact("infected", ['john'])]
 # print(validate_facts(world, test, 2))
-init = world.facts + [Fact("infected", ["john"])]#paths + types + [Fact("at", ["john", "johnhouse"]), Fact("alive", ["john"]), Fact("infected", ["john"])]
-goal = [Fact("at", ["john", "hospital"]), Fact("cured", ["john"]), Fact("has", ["john", "food3"])]
+init = world.facts + [Fact("infected", ["anne"])]#paths + types + [Fact("at", ["john", "johnhouse"]), Fact("alive", ["john"]), Fact("infected", ["john"])]
+goal = [Fact("at", ["john", "hospital"]), Fact("cured", ["anne"]), Fact("has", ["john", "food3"])]
 generate_domain(world)
 ind = Individual(len(init), init, 0, goal)
 generate_problem(ind, world)
