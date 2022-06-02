@@ -19,7 +19,7 @@ class Parameter: # predicate's parameter
     is_unique: bool
 
 @dataclass
-class Predicate: # object in xml
+class Predicate: # predicates in xml
     name: str
     initialstate: bool
     goalstate: bool
@@ -30,6 +30,7 @@ class Predicate: # object in xml
 class Fact: # relations in xml
     name: str
     arguments: List[str]
+    is_negated: bool = False
 
 @dataclass
 class Action: # operators, eventeffects in xml
@@ -61,15 +62,14 @@ def get_facts(fact_list: List[Fact], name: str, required_argument: str) -> List[
 def get_related(preds: List[Predicate], name: str):
     return [pred for pred in preds if pred.name == name]
 
-def types_equall(parameters_left, parameters_right):
+def types_equall(objects: List[Object], parameters_left, parameters_right):
     counter = 0
     for pred_param, fact_param in zip(parameters_left, parameters_right):
-        if pred_param.type == get_type(world.objects, fact_param):
+        if pred_param.type == get_type(objects, fact_param):
             counter+=1
         if counter == len(parameters_left):
             return True
-    return False
-        
+    return False   
 
 def validate_facts(world: World, facts: List[Fact], init_length: int) -> List[Fact]:
     is_goal = init_length == -1
@@ -84,7 +84,7 @@ def validate_facts(world: World, facts: List[Fact], init_length: int) -> List[Fa
                 print("diff_lengths")
                 invalid_facts.append(len(facts) - index - 1)
                 break
-            if types_equall(pred.parameters, fact.arguments):
+            if types_equall(world.objects, pred.parameters, fact.arguments):
                 types_validated = True
             if not pred.initialstate and not is_goal:
                 print("invalid as initstate")
@@ -96,7 +96,7 @@ def validate_facts(world: World, facts: List[Fact], init_length: int) -> List[Fa
         if index >= end_index or len(facts) - index - 1 in invalid_facts:
             continue
         for pred in related_predicates:
-            if not types_equall(pred.parameters, fact.arguments):
+            if not types_equall(world.objects, pred.parameters, fact.arguments):
                 continue
             if not pred.goalstate and is_goal:
                 print("invalid as goalstate")
@@ -108,7 +108,6 @@ def validate_facts(world: World, facts: List[Fact], init_length: int) -> List[Fa
                     invalid_facts.append(len(facts) - index - 1)
                     break
             for pred_param, fact_param in zip(pred.parameters, fact.arguments):
-                print(pred_param.is_unique)
                 if pred_param.is_unique and len(get_facts(facts[:len(facts)-index-1], pred.name, fact_param)) > 0:
                     print("not unique")
                     invalid_facts.append(len(facts) - index - 1)
@@ -119,83 +118,12 @@ def validate_facts(world: World, facts: List[Fact], init_length: int) -> List[Fa
     return facts
 
         
-
+@dataclass
 class Individual:
     init_length: int
     initial_state: List[Fact]
-    goal: List[Fact]
+    goal_init_length: int
+    goal_state: List[Fact]
 
     def repair(self):
         pass
-
-def set_actions_tension(actions: List[Action], tension: Dict) -> List[Action]:
-    return [Action(a.name, a.params, a.preconditions, a.effects, tension[a.name]) for a in actions]
-
-def parse_xml(filename):
-    tree = ET.parse(filename)
-    root = tree.getroot()
-
-    objects = []
-    facts = []
-    actions = []
-    predicates = []
-    tension = {}
-
-    for child in root:
-        for elem in child:
-            attrs = elem.attrib
-            if child.tag == "objects":
-                objects.append(Object(attrs['name'], attrs['type']))
-            elif child.tag == "relations":
-                name = attrs['name']
-                object_names = []
-                for param in elem:
-                    object_names.append(param.attrib['value'])
-                facts.append(Fact(name, object_names))
-            elif child.tag == "operators":
-                action_name = attrs['name']
-                params = []
-                conditions = []
-                effects = []
-                for property in elem: 
-                    if property.tag == "parameters":
-                        for parameter in property:
-                            params.append(Object(parameter.attrib["name"], parameter.attrib["type"]))
-                    elif property.tag == "preconditions":
-                        for precondition in property:
-                            name = precondition.attrib['predicate']
-                            object_names = []
-                            for param in precondition:
-                                object_names.append(param.attrib['name'])
-                            conditions.append(Fact(name, object_names))
-                    elif property.tag == "effects":
-                        for effect in property:
-                            name = effect.attrib['predicate']
-                            object_names = []
-                            for param in effect:
-                                object_names.append(param.attrib['name'])
-                            effects.append(Fact(name, object_names))
-                actions.append(Action(action_name, params, conditions, effects, 0))
-            elif child.tag == "eventeffects":
-                tension[attrs['name']] = TS_VALUES[attrs['tension']]
-            elif child.tag == "predicates":
-                name = attrs['name']
-                initialstate = True if attrs['initialstate'] == "true" else False
-                goalstate = True if attrs['goalstate'] == "true" else False
-                oposite = attrs['oposite'] if 'oposite' in attrs else None
-                params = []
-                for param in elem:
-                    unique = True if 'unique' in param.attrib else False
-                    params.append(Parameter(param.attrib['type'], unique))
-                pred = Predicate(name, initialstate, goalstate, params)
-                if oposite:
-                    pred.oposite = oposite
-                predicates.append(pred)
-                
-    print(facts)
-    actions = set_actions_tension(actions, tension)
-    return World(objects, facts, actions, predicates)
-
-world = parse_xml("quest_db.xml")
-test = [Fact("at", ["john", "forest"]), Fact("at", ["john", "island"]), Fact("healthy", ["john"]), Fact("infected", ['john'])]
-print(validate_facts(world, test, 2))
