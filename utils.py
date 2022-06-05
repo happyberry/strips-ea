@@ -1,7 +1,18 @@
 import re
+import os
+import subprocess
 from typing import List
 from model import Individual, Action
 
+
+HSPHOME = os.path.abspath("./hsp")
+
+def run_hsp_planner(dir_path: str) -> None:
+    """
+    Run hsp planner, hsp saves result in solutions.all file 
+    """
+    dir_path = os.path.abspath(dir_path)
+    os.system(f"cd {HSPHOME}; make compile; cd {dir_path}; make compile; make solve")
 
 def get_tensions(solutions_path: str,
                  actions: List[Action],
@@ -39,18 +50,19 @@ def scale_tension(tension: List[int], interval: int) -> List[int]:
             for i in range(interval)]
 
 if __name__ == "__main__":
-    from xml_pddl_parser import parse_xml, generate_domain
-    from model import Fact
-    world = parse_xml("quest_db.xml")
-    init = world.facts + [Fact("infected", ["anne"])]#paths + types + [Fact("at", ["john", "johnhouse"]), Fact("alive", ["john"]), Fact("infected", ["john"])]
-    goal = [Fact("at", ["john", "hospital"]), Fact("cured", ["anne"]), Fact("has", ["john", "food3"])]
-    generate_domain(world)
-    ind1 = Individual(len(init), init, 0, goal)
-    ind2 = Individual(len(init), init, 0, goal)
-    pop = [ind1, ind2]
-    test = get_tensions("./hsp/pddl/ferry/solutions.all", world.actions, pop)
-    print(test[0].tension)
-    print(test[1].tension)
-    from ea import get_fitness
-    tension_pattern = scale_tension([1,2,3,2],10)
-    print(get_fitness(test[0],tension_pattern))
+    run_hsp_planner("./zombie")
+    # from xml_pddl_parser import parse_xml, generate_domain
+    # from model import Fact
+    # world = parse_xml("quest_db.xml")
+    # init = world.facts + [Fact("infected", ["anne"])]#paths + types + [Fact("at", ["john", "johnhouse"]), Fact("alive", ["john"]), Fact("infected", ["john"])]
+    # goal = [Fact("at", ["john", "hospital"]), Fact("cured", ["anne"]), Fact("has", ["john", "food3"])]
+    # generate_domain(world)
+    # ind1 = Individual(len(init), init, 0, goal)
+    # ind2 = Individual(len(init), init, 0, goal)
+    # pop = [ind1]
+    # test = get_tensions("./hsp/pddl/ferry/solutions.all", world.actions, pop)
+    # print(test[0].tension)
+    # #print(test[1].tension)
+    # from ea import get_fitness
+    # tension_pattern = scale_tension([1,2,3,2],10)
+    # print(get_fitness(test[0],tension_pattern))
