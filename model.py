@@ -124,6 +124,7 @@ class Individual:
     initial_state: List[Fact]
     goal_init_length: int
     goal_state: List[Fact]
+    tension: List[int] = None
 
     def repair(self):
         pass
