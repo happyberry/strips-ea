@@ -1,9 +1,7 @@
 import re
 import os
-import subprocess
 from typing import List
-from model import Individual, Action
-
+from model import Action, Individual 
 
 HSPHOME = os.path.abspath("./hsp")
 
