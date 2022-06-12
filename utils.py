@@ -12,10 +12,33 @@ def run_hsp_planner(dir_path: str) -> None:
     dir_path = os.path.abspath(dir_path)
     os.system(f"export HSPHOME={HSPHOME}; cd $HSPHOME; make compile; cd {dir_path}; make compile; make solve")
 
+def get_actions_from_planner(solutions_path: str,
+                 actions: List[Action],
+                 population: List[Individual]) -> List[Individual]:
+    actions_dict = {action.name: action for action in actions}
+    indv_idx = 0
+    indv_actions = []
+    with open(solutions_path) as solutions:
+        for i, line in enumerate(solutions):
+            process_line = re.sub("[()]","", line.lower()).split(" ")
+            if i != 0 and process_line[0] == f"zombie{indv_idx + 2}\n":
+                population[indv_idx].actions_from_planner = indv_actions
+                indv_actions = []
+                indv_idx += 1
+            if process_line[0] in actions_dict.keys():
+                action = actions_dict[process_line[0]]
+                for name, param in zip(process_line[1:], action.params):
+                    param.name = name
+                indv_actions.append(action)
+    population[indv_idx].actions_from_planner = indv_actions #handle last pop
+
+    return population
+
 def get_tensions(solutions_path: str,
                  actions: List[Action],
                  population: List[Individual]) -> List[Individual]:
     """
+    DEPRECATED
     Read planner output ("solutions.all") and get tensions for equivalent individual
     """
     actions_tension = {action.name: action.tension for action in actions}
@@ -56,9 +79,7 @@ if __name__ == "__main__":
     ind1 = Individual(len(init), init, 0, goal)
     ind2 = Individual(len(init), init, 0, goal)
     pop = [ind1]
-    test = get_tensions("./zombie/solutions.all", world.actions, pop)
-    print(test[0].tension)
-    #print(test[1].tension)
+    test = get_actions_from_planner("./zombie/solutions.all", world.actions, pop)
     from ea import get_fitness
     tension_pattern = scale_tension([1,2,3,2],10)
     print(get_fitness(test[0],tension_pattern))
