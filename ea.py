@@ -6,12 +6,12 @@ from model import *
 from xml_pddl_parser import get_grouped_objects, parse_xml
 from utils import scale_tension
 
-POPULATION_SIZE = 20
-GENERATIONS = 10
+POPULATION_SIZE = 100
+GENERATIONS = 40
 ELITE_PART = 0.5
 TENSION_PATTERN = [1,2,3,2]
-INIT_ADDITIONAL_FACTS_MAX_SIZE = 10
-GOAL_ADDITIONAL_FACTS_MAX_SIZE = 10 
+INIT_ADDITIONAL_FACTS_MAX_SIZE = 5
+GOAL_ADDITIONAL_FACTS_MAX_SIZE = 1
 
 def generate_random_individual(world: World, initial_state: List[Fact], expected_goal: List[Fact]) -> Individual:
     """
@@ -24,6 +24,7 @@ def generate_random_individual(world: World, initial_state: List[Fact], expected
     goal_length = len(expected_goal)
     goal_predicates = [p for p in world.predicates if p.goalstate]
     grouped_objects = get_grouped_objects(world.objects)
+    _expected_goal = expected_goal[:]
     for _ in range(INIT_ADDITIONAL_FACTS_MAX_SIZE):
         pred = world.predicates[random.randint(0, len(world.predicates)-1)]
         new_fact = Fact(pred.name, [])
@@ -39,10 +40,10 @@ def generate_random_individual(world: World, initial_state: List[Fact], expected
             params_of_type = grouped_objects[param.type]
             param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
             new_fact.arguments.append(param_value)
-        expected_goal.append(new_fact)
+        _expected_goal.append(new_fact)
     initial_state = validate_facts(world, initial_state, init_length)
     expected_goal = validate_facts(world, expected_goal, goal_length)
-    return Individual(init_length, initial_state, goal_length, expected_goal)
+    return Individual(init_length, initial_state, goal_length, _expected_goal)
         
 def initialize_population(world: World, initial_state: List[Fact] = [], expected_goal: List[Fact] = []) -> List[Individual]:
     """
@@ -92,7 +93,7 @@ def select_elite(previous_population, prev_pop_fitness):
     """"
     Returns ELITE_PART part of population sorted descending by fitness
     """
-    fitness = sorted(prev_pop_fitness)
+    fitness = sorted(prev_pop_fitness, reverse=True)
     cutoff_value = fitness[round(len(fitness) * ELITE_PART)]
     best_parents = []
 
@@ -108,7 +109,7 @@ def get_fitness(individual: Individual, tension_pattern = List[int]) -> float:
     Warning!!! -- indv tension is scaled to length of tension_pattern
     """
     if not individual.actions_from_planner:
-        return -100 #NO SOLUTION
+        return 1000 #NO SOLUTION
     tensions = individual.get_tensions()
     scaled_tensions = scale_tension(tensions, len(tension_pattern))
 
@@ -124,7 +125,7 @@ def calculate_fitness_stats(population, fitness_values):
     - best individual fitness
     - average fitness of population
     """
-    best_fitness = max(fitness_values)
+    best_fitness = min(fitness_values)
     best_individual = population[fitness_values.index(best_fitness)]
     total_score = sum(fitness_values)
     average_fitness = total_score / len(fitness_values)
@@ -180,7 +181,6 @@ if __name__ == "__main__":
             file.write(f"Average Fitness: {average_fitness}\n")
             file.write("\n")
         population = new_generation[:]
-
 
 # ind1 = generate_random_individual(world, world.facts, [])
 # ind1.tension = [0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 6, 6, 6, 6, 5, 5, 5, 5]
