@@ -1,11 +1,11 @@
 (define (domain zombie)
 	(:requirements :strips)
 	(:predicates
+		(item ?x)
 		(location ?x)
-		(enemy ?x)
 		(bigenemy ?x)
 		(character ?x)
-		(item ?x)
+		(enemy ?x)
 
 		(at ?x ?y)
 		(has ?x ?y)

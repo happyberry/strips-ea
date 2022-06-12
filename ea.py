@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 from model import *
 from xml_pddl_parser import get_grouped_objects, parse_xml
+from utils import scale_tension
 
 POPULATION_SIZE = 20
 GENERATIONS = 10
@@ -106,12 +107,14 @@ def get_fitness(individual: Individual, tension_pattern = List[int]) -> float:
     """
     Warning!!! -- indv tension is scaled to length of tension_pattern
     """
-    # scaled_tension = scale_tension(self.tension, len(tension_pattern))
-    # # should better cast tensions to numpy array?
-    # mse = (sum([(scaled_tension[i] - tension_pattern[i])**2
-    #             for i in range(len(tension_pattern))])/len(tension_pattern))
-    # return len(self.tension)/mse
-    return random.random()
+    if not individual.actions_from_planner:
+        return -100 #NO SOLUTION
+    tensions = individual.get_tensions()
+    scaled_tensions = scale_tension(tensions, len(tension_pattern))
+
+    mse = (sum([(scaled_tensions[i] - tension_pattern[i])**2
+                for i in range(len(tension_pattern))])/len(tension_pattern))
+    return len(individual.actions_from_planner)/mse
 
 def calculate_fitness_stats(population, fitness_values):
     """

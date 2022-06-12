@@ -1,5 +1,5 @@
-from typing import TextIO
-
+from typing import TextIO, Dict
+import xml.etree.ElementTree as ET
 from sklearn.feature_selection import f_regression
 from model import *
 
@@ -162,9 +162,9 @@ def generate_domain(world: World, name: str = "zombie"):
             file.write(")")
         file.write(")")
 
-def generate_problem(individual: Individual, world: World, name: str = "zombie"):
-    with open(f"./{name}/problem.pddl", "w") as file:
-        file.write(f"(define (problem {name}_1)\n")
+def generate_problem(individual: Individual, world: World, index: int, name: str = "zombie"):
+    with open(f"./{name}/problem{index}.pddl", "w") as file:
+        file.write(f"(define (problem {name}_{index})\n")
         file.write(f"\t(:domain {name})\n")
         file.write("\t(:objects")
         grouped_objects = get_grouped_objects(world.objects)
@@ -180,14 +180,16 @@ def generate_problem(individual: Individual, world: World, name: str = "zombie")
         write_state_facts(individual.goal_state, file)
         file.write("))")
 
-world = parse_xml("quest_db.xml")
-print(world.actions)
-paths = [f for f in world.facts if f.name in ["path", "open"]]
-types = [f for f in world.facts if f.name.startswith("is")]
-test = [Fact("at", ["john", "forest"]), Fact("at", ["antidote2", "hospital"]), Fact("at", ["food3", "hospital"]), Fact("at", ["john", "island"]), Fact("healthy", ["john"]), Fact("infected", ['john'])]
-# print(validate_facts(world, test, 2))
-init = world.facts + [Fact("infected", ["anne"])]#paths + types + [Fact("at", ["john", "johnhouse"]), Fact("alive", ["john"]), Fact("infected", ["john"])]
-goal = [Fact("at", ["john", "hospital"]), Fact("cured", ["anne"]), Fact("has", ["john", "food3"])]
-generate_domain(world)
-ind = Individual(len(init), init, 0, goal)
-generate_problem(ind, world)
+
+if __name__ == "__main__":
+    world = parse_xml("quest_db.xml")
+    print(world.actions)
+    paths = [f for f in world.facts if f.name in ["path", "open"]]
+    types = [f for f in world.facts if f.name.startswith("is")]
+    test = [Fact("at", ["john", "forest"]), Fact("at", ["antidote2", "hospital"]), Fact("at", ["food3", "hospital"]), Fact("at", ["john", "island"]), Fact("healthy", ["john"]), Fact("infected", ['john'])]
+    # print(validate_facts(world, test, 2))
+    init = world.facts + [Fact("infected", ["anne"])]#paths + types + [Fact("at", ["john", "johnhouse"]), Fact("alive", ["john"]), Fact("infected", ["john"])]
+    goal = [Fact("at", ["john", "hospital"]), Fact("cured", ["anne"]), Fact("has", ["john", "food3"])]
+    generate_domain(world)
+    ind = Individual(len(init), init, 0, goal)
+    generate_problem(ind, world)

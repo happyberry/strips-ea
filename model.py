@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import reduce
 from typing import List, Optional
 
 TS_VALUES = {
@@ -52,7 +53,11 @@ class Individual:
     initial_state: List[Fact]
     goal_init_length: int
     goal_state: List[Fact]
-    tension: List[int] = None
+    actions_from_planner: List[Action] = None
+
+    def get_tensions(self):
+        return reduce(lambda acc, x: acc + [acc[-1] + x.tension],
+                        self.actions_from_planner, [0])[1:]
 
 def get_type(objects: List[Object], name: str) -> str:
     for o in objects:
