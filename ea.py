@@ -54,20 +54,9 @@ def get_fitness(individual: Individual, tension_pattern = List[int]) -> float:
     """
     Warning!!! -- indv tension is scaled to length of tension_pattern
     """
-    scaled_tension = scale_tension(individual.tension, len(tension_pattern))
-    #should better cast tensions to numpy array?
-    mse = (sum([(scaled_tension[i] - tension_pattern[i])**2
+    tensions = individual.get_tensions()
+    scaled_tensions = scale_tension(tensions, len(tension_pattern))
+
+    mse = (sum([(scaled_tensions[i] - tension_pattern[i])**2
                 for i in range(len(tension_pattern))])/len(tension_pattern))
-    return len(individual.tension)/mse
-
-
-
-world = parse_xml("quest_db.xml")
-ind1 = generate_random_individual(world, world.facts, [])
-ind1.tension = [0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 6, 6, 6, 6, 5, 5, 5, 5]
-ind2 = generate_random_individual(world, world.facts, [])
-ind2.tension = [0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 6, 6]
-tension_pattern = [1,2,3,2]
-scaled_tension_pattern = scale_tension(tension_pattern, 10)
-test1 = get_fitness(ind1,scaled_tension_pattern)
-test2 = get_fitness(ind2,scaled_tension_pattern)
+    return len(individual.actions_from_planner)/mse
