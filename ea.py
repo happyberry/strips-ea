@@ -6,12 +6,13 @@ from model import *
 from xml_pddl_parser import get_grouped_objects, parse_xml
 from utils import scale_tension
 
-POPULATION_SIZE = 100
-GENERATIONS = 40
+POPULATION_SIZE = 50
 ELITE_PART = 0.5
 TENSION_PATTERN = [1,2,3,2]
-INIT_ADDITIONAL_FACTS_MAX_SIZE = 5
-GOAL_ADDITIONAL_FACTS_MAX_SIZE = 1
+INIT_ADDITIONAL_FACTS_MAX_SIZE = 2
+GOAL_ADDITIONAL_FACTS_MAX_SIZE = 3
+MUTATION_PROB = 0.2
+
 
 def generate_random_individual(world: World, initial_state: List[Fact], expected_goal: List[Fact]) -> Individual:
     """
@@ -24,23 +25,32 @@ def generate_random_individual(world: World, initial_state: List[Fact], expected
     goal_length = len(expected_goal)
     goal_predicates = [p for p in world.predicates if p.goalstate]
     grouped_objects = get_grouped_objects(world.objects)
-    _expected_goal = expected_goal[:]
-    for _ in range(INIT_ADDITIONAL_FACTS_MAX_SIZE):
-        pred = world.predicates[random.randint(0, len(world.predicates)-1)]
-        new_fact = Fact(pred.name, [])
-        for param in pred.parameters:
-            params_of_type = grouped_objects[param.type]
-            param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
-            new_fact.arguments.append(param_value)
-        initial_state.append(new_fact)
-    for _ in range(GOAL_ADDITIONAL_FACTS_MAX_SIZE):
-        pred = goal_predicates[random.randint(0, len(goal_predicates)-1)]
-        new_fact = Fact(pred.name, [])
-        for param in pred.parameters:
-            params_of_type = grouped_objects[param.type]
-            param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
-            new_fact.arguments.append(param_value)
-        _expected_goal.append(new_fact)
+    
+    generate_goal = True
+    while generate_goal:
+        _expected_goal = expected_goal[:]   
+        for _ in range(INIT_ADDITIONAL_FACTS_MAX_SIZE):
+            pred = world.predicates[random.randint(0, len(world.predicates)-1)]
+            new_fact = Fact(pred.name, [])
+            for param in pred.parameters:
+                params_of_type = grouped_objects[param.type]
+                param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
+                new_fact.arguments.append(param_value)
+            initial_state.append(new_fact)
+   
+        for _ in range(GOAL_ADDITIONAL_FACTS_MAX_SIZE):
+            pred = goal_predicates[random.randint(0, len(goal_predicates)-1)]
+            new_fact = Fact(pred.name, [])
+            for param in pred.parameters:
+                params_of_type = grouped_objects[param.type]
+                param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
+                new_fact.arguments.append(param_value)
+            _expected_goal.append(new_fact)
+        generate_goal = False
+        for goal in _expected_goal:
+            for init_state in initial_state: # n^2 complexity :(
+                if goal.name == init_state.name and set(goal.arguments) == set(init_state.arguments):
+                    generate_goal = True
     initial_state = validate_facts(world, initial_state, init_length)
     expected_goal = validate_facts(world, expected_goal, goal_length)
     return Individual(init_length, initial_state, goal_length, _expected_goal)
@@ -51,9 +61,46 @@ def initialize_population(world: World, initial_state: List[Fact] = [], expected
     """
     return [generate_random_individual(world, initial_state, expected_goal) for _ in range(POPULATION_SIZE)]
 
-def mutation(individual: Individual) -> Individual:
-    # TODO: Delete or add random fact in init and/or goal state?
-    pass
+def mutation(world: World, individual: Individual) -> Individual:
+    """
+    Given probability MUTATION_PROB a random delete or add random
+    fact in init and/or goal state is performed
+    """
+    do_mutatation = random.random() <= MUTATION_PROB
+    if not do_mutatation:
+        return individual
+    
+    mutation_target = random.choice(["init", "goal"])
+    mutation_type = random.choice(["add", "remove"])
+    if mutation_type == "add":
+        goal_predicates = [p for p in world.predicates if p.goalstate]
+        grouped_objects = get_grouped_objects(world.objects)
+        
+        if mutation_target == "init":
+            pred = world.predicates[random.randint(0, len(world.predicates)-1)]
+            new_fact = Fact(pred.name, [])
+            for param in pred.parameters:
+                params_of_type = grouped_objects[param.type]
+                param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
+                new_fact.arguments.append(param_value)
+            individual.initial_state.append(new_fact)
+        else:
+            pred = goal_predicates[random.randint(0, len(goal_predicates)-1)]
+            new_fact = Fact(pred.name, [])
+            for param in pred.parameters:
+                params_of_type = grouped_objects[param.type]
+                param_value = params_of_type[random.randint(0, len(params_of_type)-1)]
+                new_fact.arguments.append(param_value)
+            individual.goal_state.append(new_fact)
+    
+    else:
+        if mutation_target == "init" and len(individual.initial_state) != 0:
+            index = random.randint(0, len(individual.initial_state) - 1)
+            del individual.initial_state[index]
+        if mutation_target == "remove" and len(individual.goal_state != 0):
+            index = random.randint(0, len(individual.goal_state) - 1)
+            del individual.goal_state[index]
+    return individual
 
 def crossover(parents: Tuple[Individual, Individual]) -> Individual:
     """
@@ -72,7 +119,9 @@ def crossover(parents: Tuple[Individual, Individual]) -> Individual:
     if use_first_half_from_first:
         first, second = second, first
     child_genes_init = first.initial_state[:crossover_point_init] + second.initial_state[crossover_point_init:]
-    child_genes_goal = first.initial_state[:crossover_point_goal] + second.initial_state[crossover_point_goal:]
+    child_genes_goal = first.goal_state[:crossover_point_goal] + second.goal_state[crossover_point_goal:]
+        
+    
     return Individual(init_length, child_genes_init, goal_length, child_genes_goal)
 
 def selection(previous_population: List[Individual], roulette_probabilities: List[float]) -> List[Individual]:
@@ -91,15 +140,15 @@ def selection(previous_population: List[Individual], roulette_probabilities: Lis
 
 def select_elite(previous_population, prev_pop_fitness):
     """"
-    Returns ELITE_PART part of population sorted descending by fitness
+    Returns ELITE_PART part of population sorted ascending by fitness
     """
-    fitness = sorted(prev_pop_fitness, reverse=True)
+    fitness = sorted(prev_pop_fitness)
     cutoff_value = fitness[round(len(fitness) * ELITE_PART)]
     best_parents = []
 
     for i in range(len(previous_population)):
 
-        if prev_pop_fitness[i] > cutoff_value:
+        if prev_pop_fitness[i] < cutoff_value:
             best_parents.append(previous_population[i])
 
     return best_parents
@@ -132,15 +181,18 @@ def calculate_fitness_stats(population, fitness_values):
 
     fitness_ratios = []
 
-    total_score = sum(fitness_values)
+    total_score = abs(sum(fitness_values) - 1000*len(fitness_values))
     for score in fitness_values:
-        ratio = score / total_score
+        fixed_score = 1000 - score #minimization problem
+        ratio = fixed_score / total_score
         fitness_ratios.append(ratio)
 
     roulette_probabilities = list(itertools.accumulate(fitness_ratios))
     return roulette_probabilities, best_individual, best_fitness, average_fitness
 
-def next_generation(previous_population: List[Individual], fitness_values: List[float]) -> List[Individual]:
+def next_generation(previous_population: List[Individual],
+                    fitness_values: List[float],
+                    world: World) -> List[Individual]:
     """
     Returns next generation based on previous generation fitness scores
     New population is constructed with elitism and roulette selection
@@ -155,38 +207,8 @@ def next_generation(previous_population: List[Individual], fitness_values: List[
     for _ in range(POPULATION_SIZE - len(best_parents)):
         selected_pair = selection(previous_population, roulette_probabilities)
         child = crossover(selected_pair)
-        # child = mutation(child)
+        child = mutation(world, child)
         child_population.append(child)
 
     child_population = child_population + best_parents
     return child_population, best_individual, best_fitness, average_fitness
-
-if __name__ == "__main__":
-    world = parse_xml("quest_db.xml")
-    initial_state = world.facts
-    expected_goal = []
-    print(*[f"Generation", "max (of generation)", "avg (of generation)"], sep='\t')
-    population = initialize_population(world, initial_state, expected_goal)
-    for i in range(GENERATIONS):
-        fitness_scores = [get_fitness(ind, TENSION_PATTERN) for ind in population]
-        new_generation, best_individual, best_fitness, average_fitness = next_generation(population, fitness_scores)
-        print(*[f"Generation: {i}", round(best_fitness, 2), round(average_fitness, 2)], sep='\t\t')
-        with open("Generations.txt", "a+") as file:
-            file.write(f"Generation {i}\n")
-            file.write(f"Best Individual (init): {best_individual.initial_state}\n")
-            file.write(f"Best Individual (goal): {best_individual.goal_state}\n")
-            file.write(f"Best Individual (actions): " + "TODO" + "\n")
-            # TODO: get list of actions, return it with fitness and write it here
-            file.write(f"Best Fitness: {best_fitness}\n")
-            file.write(f"Average Fitness: {average_fitness}\n")
-            file.write("\n")
-        population = new_generation[:]
-
-# ind1 = generate_random_individual(world, world.facts, [])
-# ind1.tension = [0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 6, 6, 6, 6, 5, 5, 5, 5]
-# ind2 = generate_random_individual(world, world.facts, [])
-# ind2.tension = [0, 1, 1, 2, 3, 3, 3, 4, 4, 5, 6, 6]
-# tension_pattern = [1,2,3,2]
-# scaled_tension_pattern = scale_tension(tension_pattern, 10)
-# test1 = get_fitness(ind1,scaled_tension_pattern)
-# test2 = get_fitness(ind2,scaled_tension_pattern)
