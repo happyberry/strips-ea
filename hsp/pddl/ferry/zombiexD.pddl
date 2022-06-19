@@ -1,0 +1,25 @@
+(define (domain zombie)
+	(:requirements :strips)
+   
+	(:predicates (location ?x)
+		(character ?x)
+		(at ?x ?y)
+		(path ?x ?y)
+		(open ?x)
+		(hero ?x)
+		(alive ?x)
+	)
+	
+        (:action go
+		    :parameters (?c ?l1 ?l2)
+		    :precondition (and (character ?c)
+					    (location ?l1)
+					    (location ?l2)
+					    (at ?c ?l1)
+					    (alive ?c)
+					    (hero ?c)
+					    (open ?l1)
+					    (path ?l1 ?l2))
+		    :effect (and (at ?c ?l2)
+					    (not (at ?c ?l1)))))
+	
